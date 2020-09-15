@@ -1,90 +1,85 @@
-% Read in original RGB image.
-global rgbImage;
-rgbImage = (im2double(imread('image1.bmp')));
-[height, width, numberofChannels] = size(rgbImage);
+% Read image and display its RGB
+global img;
+img = im2double(imread('image1.bmp'));
+imgRed = img(:,:,1); 
+imgGreen = img(:,:,2); 
+imgBlue = img(:,:,3); 
 
-% get the size of the original image
+figure('Name','RED');
+imshow(imgRed);
+figure('Name','GREEN');
+imshow(imgGreen);
+figure('Name','BLUE');
+imshow(imgBlue);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Get image props that are gonna be used later
+[height, width, channelsCount] = size(img);
+
 fid = fopen('image1.bmp');
 fseek(fid, 0, 'eof');
-originalSize = ftell(fid);
+imgSize = ftell(fid);
 fclose(fid);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Extract color channels.
-redChannel = rgbImage(:,:,1); 
-greenChannel = rgbImage(:,:,2); 
-blueChannel = rgbImage(:,:,3); 
+% Calculate PSNR and Compression Ratios and display figures
+global dctMx;
+dctMx = dctmtx(8);
+mCount = 4;
+psnr = zeros(mCount, 1); % Peak Signal To Noise Ratio
+compressionRatio = zeros(mCount, 1); % Compression Ratio
 
-% Display each channel
-figure('Name','red Channed','NumberTitle','off');
-imshow(redChannel);
-figure('Name','green Channel','NumberTitle','off');
-imshow(greenChannel);
-figure('Name','blue Channel','NumberTitle','off');
-imshow(blueChannel);
-
-% get the dct matrix of dimension 8*8
-global T;
-T = dctmtx(8);
-
-max = 4; % the maximum m to be used
-psnr = zeros(max,1);  % to store psnr of the different m used
-compressionRatio = zeros(max, 1);   % to store the compression ratio
-
-for i=1:max
-    compressedSize = DCTCompress(i, height, width, redChannel, greenChannel, blueChannel);
-    compressionRatio(i) = originalSize / compressedSize;
+for i=1:mCount
+    compressionRatio(i) = imgSize / dctCompress(i, height, width, imgRed, imgGreen, imgBlue);
 end
 
-for i=1:max
-    thePSNR = DCTDecompress(i, height, width);
-    psnr(i) = thePSNR;
+for i=1:mCount
+    psnr(i) = DCTDecompress(i, height, width);
 end
 
-% display the psnr of the different m values
-x = 1:1:max;
-figure('Name','PSNR','NumberTitle','off');
-bar(x, psnr);
+figure('Name','PSNR');
+bar(1:1:mCount, psnr);
 xlabel('m');
 ylabel('PSNR');
 
-% display the compression ratio of the different m values
-figure('Name','Compression Ratio with different m','NumberTitle','off');
-bar(x, compressionRatio);
+figure('Name','Compression Ratio');
+bar(1:1:mCount, compressionRatio);
 xlabel('m');
 ylabel('Compression Ratio');
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-function compressedSize = DCTCompress(m, height, width, redChannel, greenChannel, blueChannel)
+% DCT Compression
+function size = dctCompress(m, height, width, red, green, blue)
     
-    % make three matrices to hold the r, g and b dct coefficients
-    newWidth = width / (8 / m);
-    newHeight = height / (8 / m);
-    newRedChannel = zeros(newHeight, newWidth);
-    newBlueChannel = zeros(newHeight, newWidth);
-    newGreenChannel = zeros(newHeight, newWidth);
+    % Initialize Metrices
+    normalizedHeight = height / 8 / m;
+    normalizedWidth = width / 8 / m;
+    
+    redMx = zeros(normalizedHeight, normalizedWidth);
+    greenMx = zeros(normalizedHeight, normalizedWidth);
+    blueMx = zeros(normalizedHeight, normalizedWidth);
 
     % dct compress and mask coefficients around the m*m block of the 8*8
     % block (keeping only m*m coefficient) of each 8*8 coefficient
     for i=1:height/8 
         for j=1:width/8
-           startX = (i-1) * m + 1;
-           endX =  i * m;
-           startY = (j-1) * m + 1;
-           endY = j * m;
+           x0 = (i - 1) * m + 1;
+           x =  m * i;
+           y0 = (j - 1 * m) + 1;
+           y = m * j;
            
-           block = compressBlock(blueChannel, i, j, m);
-           newBlueChannel(startX:endX, startY:endY) = block;
+           block = compress(blue, i, j, m);
+           blueMx(x0:x, y0:y) = block;
            
-           block = compressBlock(redChannel, i, j, m);
-           newRedChannel(startX:endX, startY:endY) = block;
+           block = compress(red, i, j, m);
+           redMx(x0:x, y0:y) = block;
            
-           block = compressBlock(greenChannel, i, j, m);
-           newGreenChannel(startX:endX, startY:endY) = block;
+           block = compress(green, i, j, m);
+           greenMx(x0:x, y0:y) = block;
         end
     end
     
     % save the coefficients to a file
-    compressedRgbImage = (cat(3,newRedChannel,newGreenChannel,newBlueChannel));
+    compressedRgbImage = (cat(3,redMx,greenMx,blueMx));
     compressedRgbImage = half(compressedRgbImage);
     s1 = mfilename('fullpath');
     s2 = 'encodedm';
@@ -96,7 +91,7 @@ function compressedSize = DCTCompress(m, height, width, redChannel, greenChannel
     % coefficient as minimum size float is (half) in matlab
     fid = fopen([s1 s2 int2str(m) s3]);
     fseek(fid, 0, 'eof');
-    compressedSize = ftell(fid);
+    size = ftell(fid);
     fclose(fid);
     
 end
@@ -123,13 +118,13 @@ function thePSNR = DCTDecompress(m, height, width)
     % zeros around that m*m block 
     for i=1:height/8 
         for j=1:width/8
-           block = DecompressBlock(encodedBlueChannel, i, j, m);
+           block = decompress(encodedBlueChannel, i, j, m);
            newBlueChannel((i-1) * 8 + 1: i * 8, (j-1) * 8 + 1: j * 8) = block;
 
-           block = DecompressBlock(encodedRedChannel, i, j, m);
+           block = decompress(encodedRedChannel, i, j, m);
            newRedChannel((i-1) * 8 + 1: i * 8, (j-1) * 8 + 1: j * 8) = block;
 
-           block = DecompressBlock(encodedGreenChannel, i, j, m);
+           block = decompress(encodedGreenChannel, i, j, m);
            newGreenChannel((i-1) * 8 + 1: i * 8, (j-1) * 8 + 1: j * 8) = block;
         end
     end
@@ -141,24 +136,33 @@ function thePSNR = DCTDecompress(m, height, width)
     imwrite(DecompressedRgbImage, [s1 int2str(m) s2]);
     
     % calculate the psnr and compare the output with the original visually
-    global rgbImage;
-    thePSNR = psnr(DecompressedRgbImage, rgbImage);
+    global img;
+    thePSNR = psnr(DecompressedRgbImage, img);
     s1 = 'comparison between original and compressed image with m = ';
     figure('Name',[s1 int2str(m)],'NumberTitle','off');
-    imshowpair(DecompressedRgbImage, rgbImage, 'montage');
+    imshowpair(DecompressedRgbImage, img, 'montage');
 end
 
-function block = compressBlock(Channel, start_x, start_y, m)
-  global T;
-  temp = Channel((start_x-1) * 8 + 1: start_x * 8, (start_y-1) * 8 + 1: start_y * 8);
-  temp = T * temp * T';
-  block = temp(1:m, 1:m);
+function result = compress(mx, x0, y0, m)
+  global dctMx;
+  x1 = (x0 - 1) * 8 + 1;
+  x = x0 * 8;
+  y1 = (y0 - 1) * 8 + 1;
+  y = y0 * 8;
   
+  mxTransformed = dctMx * mx(x1:x, y1:y) * dctMx';
+  result = mxTransformed(1:m, 1:m);
 end
 
-function block = DecompressBlock(Channel, start_x, start_y, m)
-  global T;
-  block = zeros(8, 8);
-  block(1:m, 1:m) = Channel((start_x-1) * m + 1: start_x * m, (start_y-1) * m + 1: start_y * m);
-  block = T' * block * T;
+function result = decompress(mx, x0, y0, m)
+  global dctMx;
+  result = zeros(8, 8);
+  
+  x1 = (x0 - 1) * 8 + 1;
+  x = x0 * 8;
+  y1 = (y0 - 1) * 8 + 1;
+  y = y0 * 8;
+  
+  result(1:m, 1:m) = mx(x1:x, y1:y);
+  result = dctMx' * result * dctMx;
 end

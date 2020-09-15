@@ -15,8 +15,7 @@ imshow(imgGreen);
 figure('Name','BLUE');
 imshow(imgBlue);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Calculate PSNR and Compression Ratios then display figures
+
 dctMx = dctmtx(8);
 mCount = 4;
 psnr = zeros(mCount, 1);
@@ -41,8 +40,9 @@ figure('Name','Compression Ratio');
 bar(1:1:mCount, compressionRatio);
 xlabel('m');
 ylabel('Compression Ratio');
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function compressionSize = dctCompress(red, green, blue, m, height, width)
     normalizedHeight = height / (8 / m);
     normalizedWidth = width / (8 / m);

@@ -7,6 +7,9 @@ h3 = [zeros(1, fs * 0.5) 0.8 zeros(1, fs- fs * 0.5)];
 h4 = [zeros(1, fs * 0.75) 0.7 zeros(1, fs- fs * 0.75)];
 h = h1 + h2 + h3 + h4;
 
+% Calculate Convolution of y
+y = conv(x, h);
+
 % Calculate X = Inverse DFT
 maxLength = max([length(y); length(h)]);
 H = fft([h'; zeros(maxLength - length(h), 1)]);
@@ -16,6 +19,7 @@ X = real(ifft(Y./H));
 % Display Figures
 figure(1);
 plot(x);
+title('My Title')
 
 figure(2);
 plot(X);

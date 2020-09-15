@@ -1,40 +1,35 @@
-% Read image and display its RGB
 global img;
+global dctMx;
+
 img = im2double(imread('image1.bmp'));
+[height, width, z] = size(img);
+
 imgRed = img(:,:,1); 
 imgGreen = img(:,:,2); 
 imgBlue = img(:,:,3); 
 
-% figure('Name','RED');
-% imshow(imgRed);
-% figure('Name','GREEN');
-% imshow(imgGreen);
-% figure('Name','BLUE');
-% imshow(imgBlue);
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Get image props that are gonna be used later
-[height, width, channelsCount] = size(img);
+figure('Name','RED');
+imshow(imgRed);
+figure('Name','GREEN');
+imshow(imgGreen);
+figure('Name','BLUE');
+imshow(imgBlue);
 
-fid = fopen('image1.bmp');
-fseek(fid, 0, 'eof');
-imgSize = ftell(fid);
-fclose(fid);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% Calculate PSNR and Compression Ratios and display figures
-global dctMx;
+% Calculate PSNR and Compression Ratios then display figures
 dctMx = dctmtx(8);
 mCount = 4;
-psnr = zeros(mCount, 1); % Peak Signal To Noise Ratio
-compressionRatio = zeros(mCount, 1); % Compression Ratio
+psnr = zeros(mCount, 1);
+compressionRatio = zeros(mCount, 1);
+imgSize = fileSize('image1.bmp');
 
 for i=1:mCount
-    compressionSize = dctCompress(i, height, width, imgRed, imgGreen, imgBlue);
+    compressionSize = dctCompress(imgRed, imgGreen, imgBlue, i, height, width);
     compressionRatio(i) = imgSize / compressionSize;
 end
 
 for i=1:mCount
-    psnr(i) = DCTDecompress(i, height, width);
+    psnr(i) = dctDecompress(i, height, width);
 end
 
 figure('Name','PSNR');
@@ -48,10 +43,7 @@ xlabel('m');
 ylabel('Compression Ratio');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% DCT Compression
-function compressionSize = dctCompress(m, height, width, red, green, blue)
-    
-    % Initialize Metrices
+function compressionSize = dctCompress(red, green, blue, m, height, width)
     normalizedHeight = height / (8 / m);
     normalizedWidth = width / (8 / m);
     
@@ -59,8 +51,6 @@ function compressionSize = dctCompress(m, height, width, red, green, blue)
     greenMx = zeros(normalizedHeight, normalizedWidth);
     blueMx = zeros(normalizedHeight, normalizedWidth);
 
-    % dct compress and mask coefficients around the m*m block of the 8*8
-    % block (keeping only m*m coefficient) of each 8*8 coefficient
     for i=1:height/8 
         for j=1:width/8
            x0 = (i - 1) * m + 1;
@@ -68,81 +58,53 @@ function compressionSize = dctCompress(m, height, width, red, green, blue)
            y0 = (j - 1) * m + 1;
            y = m * j;
            
-           block = compress(red, i, j, m);
-           redMx(x0:x, y0:y) = block;
-                      
-           block = compress(green, i, j, m);
-           greenMx(x0:x, y0:y) = block;
-           
-           block = compress(blue, i, j, m);
-           blueMx(x0:x, y0:y) = block;
-
+           redMx(x0:x, y0:y) = compress(red, i, j, m);
+           greenMx(x0:x, y0:y) = compress(green, i, j, m);
+           blueMx(x0:x, y0:y) = compress(blue, i, j, m);
         end
     end
     
-    % save the coefficients to a file
-    compressedRgbImage = (cat(3,redMx,greenMx,blueMx));
-    compressedRgbImage = half(compressedRgbImage);
-    s1 = mfilename('fullpath');
-    s2 = 'encodedm';
-    s3 = '.mat';
-    save([s1 s2 int2str(m) s3], 'compressedRgbImage');
-   
-    % compressed size is the size needed to store the coefficients and
-    % because they are float minimum size in matlab is 2 bytes per
-    % coefficient as minimum size float is (half) in matlab
-    fid = fopen([s1 s2 int2str(m) s3]);
-    fseek(fid, 0, 'eof');
-    compressionSize = ftell(fid);
-    fclose(fid);
-    
+    compressedImg = half(cat(3, redMx, greenMx, blueMx));
+    compressedImgPath = [mfilename('fullpath') 'encodedm' int2str(m) '.mat'];
+    save(compressedImgPath, 'compressedImg');
+  
+    compressionSize = fileSize(compressedImgPath);
 end
 
-function thePSNR = DCTDecompress(m, height, width)
-    % make matrices to hold the channels of the decompressed image
-    newRedChannel = zeros(height, width);
-    newBlueChannel = zeros(height, width);
-    newGreenChannel = zeros(height, width);
+function psnrVal = dctDecompress(m, height, width)
+    global img;
     
-    % load the coefficients from the stored comrpessed file
-    s1 = mfilename('fullpath');
-    s2 = 'encodedm';
-    s3 = '.mat';
-    rgbImageCompressed = load([s1 s2 int2str(m) s3]);
-    rgbImageCompressed = rgbImageCompressed.compressedRgbImage;
+    redMx = zeros(height, width);
+    greenMx = zeros(height, width);
+    blueMx = zeros(height, width);
+
+    imgPath = [mfilename('fullpath') 'encodedm' int2str(m) '.mat'];
+    rgbCompressedImg = load(imgPath);
+    rgbCompressedImg = rgbCompressedImg.compressedImg;
     
-    % Extract color channels.
-    encodedRedChannel = rgbImageCompressed(:,:,1); 
-    encodedGreenChannel = rgbImageCompressed(:,:,2); 
-    encodedBlueChannel = rgbImageCompressed(:,:,3);
+    redCompressedImg = rgbCompressedImg(:,:,1); 
+    greenCompressedImg = rgbCompressedImg(:,:,2); 
+    blueCompressedImg = rgbCompressedImg(:,:,3);
     
-    % inverse dct for each block 8*8 which consists of m*m coefficient and
-    % zeros around that m*m block 
     for i=1:height/8 
         for j=1:width/8
-           block = decompress(encodedBlueChannel, i, j, m);
-           newBlueChannel((i-1) * 8 + 1: i * 8, (j-1) * 8 + 1: j * 8) = block;
-
-           block = decompress(encodedRedChannel, i, j, m);
-           newRedChannel((i-1) * 8 + 1: i * 8, (j-1) * 8 + 1: j * 8) = block;
-
-           block = decompress(encodedGreenChannel, i, j, m);
-           newGreenChannel((i-1) * 8 + 1: i * 8, (j-1) * 8 + 1: j * 8) = block;
+           x0 = (i - 1) * 8 + 1;
+           x = i * 8;
+           y0 = (j - 1) * 8 + 1;
+           y = j * 8;
+           
+           redMx(x0:x, y0:y) = decompress(redCompressedImg, i, j, m);
+           blueMx(x0:x, y0:y) = decompress(blueCompressedImg, i, j, m);
+           greenMx(x0:x, y0:y) = decompress(greenCompressedImg, i, j, m);
         end
     end
     
-    % save the decompressed image to file
-    DecompressedRgbImage = (cat(3,newRedChannel,newGreenChannel,newBlueChannel));
-    s1 = mfilename('fullpath');
-    s2 = '.bmp';
-    imwrite(DecompressedRgbImage, [s1 int2str(m) s2]);
+    decompressedImg = (cat(3, redMx, greenMx, blueMx));
+    imwrite(decompressedImg, [mfilename('fullpath') int2str(m) '.bmp']);
     
-    % calculate the psnr and compare the output with the original visually
-    global img;
-    thePSNR = psnr(DecompressedRgbImage, img);
-    s1 = 'comparison between original and compressed image with m = ';
-    figure('Name',[s1 int2str(m)],'NumberTitle','off');
-    imshowpair(DecompressedRgbImage, img, 'montage');
+    psnrVal = psnr(decompressedImg, img);
+    figure('Name',['Original vs Compressed @m=' int2str(m)]);
+    imshowpair(decompressedImg, img, 'montage');
 end
 
 function result = compress(mx, x0, y0, m)
@@ -167,4 +129,11 @@ function result = decompress(mx, x0, y0, m)
   
   result(1:m, 1:m) = mx(x1:x, y1:y);
   result = dctMx' * result * dctMx;
+end
+
+function size = fileSize(path)
+    fid = fopen(path);
+    fseek(fid, 0, 'eof');
+    size = ftell(fid);
+    fclose(fid); 
 end

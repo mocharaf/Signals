@@ -46,8 +46,8 @@ function mergeAndSeparate()
     
     merged = zeros(1, length(x2));
     merged = merged + x2';
-    merged(1:length(x1)) = merged(1:length(x1)) + (0.5 * (x1.*(cos(2 * pi * 22050 * X1TimeScale)')))';
-    separated = 4 * merged.*(cos(2 * pi * 22050 * X2TimeScale));
+    merged(1:length(x1)) = merged(1:length(x1)) + (0.5 * (x1.*(cos(2*pi*22050*X1TimeScale)')))';
+    separated = 4 * merged.*(cos(2*pi*22050*X2TimeScale));
 end
 
 function filterAudio()

@@ -1,61 +1,39 @@
-global x;
-global y;
-global h;
-global fs;
-global cleanX;
-
 [x, fs] = audioread("audio1.wav");
 
 % Calculating the Impulse Response
 h1 = [zeros(1,0) 1 zeros(1, fs)];
-h2 = [zeros(1, fs * 0.25) 0.9 zeros(1, fs-fs * 0.25)];
-h3 = [zeros(1, fs * 0.5) 0.8 zeros(1, fs-fs * 0.5)];
-h4 = [zeros(1, fs * 0.75) 0.7 zeros(1, fs-fs * 0.75)];
+h2 = [zeros(1, fs * 0.25) 0.9 zeros(1, fs- fs * 0.25)];
+h3 = [zeros(1, fs * 0.5) 0.8 zeros(1, fs- fs * 0.5)];
+h4 = [zeros(1, fs * 0.75) 0.7 zeros(1, fs- fs * 0.75)];
 h = h1 + h2 + h3 + h4;
 
-xi=GetInverseDFT(y,h);
+% Calculate Convolution of y
+y = conv(x, h);
 
-plotFigures();
+% Calculate X = Inverse DFT
+maxLength = max([length(y); length(h)]);
+H = fft([h'; zeros(maxLength - length(h), 1)]);
+Y = fft([y; zeros(maxLength - length(y), 1)]);
+X = real(ifft(Y./H));
 
-writeOutputAudioFiles();
+% Display Figures
+figure(1);
+plot(x);
+title('Audio wave input wrt time')
 
-function h = calculateImpulse(delay1, delay2, delay3)
-    global fs;
-    
-    h1 = [zeros(1,0) 1 zeros(1,fs)];
-    h2 = [zeros(1, fs * delay1) 0.9 zeros(1, fs-fs * delay1)];
-    h3 = [zeros(1, fs * delay2) 0.8 zeros(1, fs-fs * delay2)];
-    h4 = [zeros(1, fs * delay3) 0.7 zeros(1, fs-fs * delay3)];
-    
-    h = h1 + h2 + h3 + h4;
-end
+figure(2);
+plot(X);
+title('Decoded Audio Wave after removing noise wrt time')
 
-function InverseDFT = GetInverseDFT(y, h)
-    max_length=max([length(y);length(h)]);
-    H=fft([h';zeros(max_length-length(h),1)]);
-    Y=fft([y;zeros(max_length-length(y),1)]);
-    InverseDFT = real(ifft(Y./H));
-end
+figure(3);
+plot(h);
+title('Impulse response of summation of shifted input')
 
-function plotFigures()
-    global x;
-    global h;
-    global y;
-    global cleanX;
-    figure(1);
-    plot(x);
-    figure(2);
-    plot(cleanX);
-    figure(3);
-    plot(h);
-    figure(4);
-    plot(y);
-end
+figure(4);
+plot(y);
+title('Audio wave after adding noise wrt domain')
 
-function writeOutputAudioFiles()
-    global fs;
-    global y;
-    global cleanX;
-    audiowrite("echo.wav",y,fs);
-    audiowrite("no-echo.wav",cleanX,fs);
-end
+% Write Audio Files
+audiowrite("echo.wav", y,fs);
+audiowrite("no-echo.wav", X, fs);
+

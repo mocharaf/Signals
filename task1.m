@@ -19,16 +19,19 @@ X = real(ifft(Y./H));
 % Display Figures
 figure(1);
 plot(x);
-title('My Title')
+title('Audio wave input wrt time')
 
 figure(2);
 plot(X);
+title('Decoded Audio Wave after removing echo wrt time')
 
 figure(3);
 plot(h);
+title('Impulse response of summation of shifted input')
 
 figure(4);
 plot(y);
+title('Audio wave after adding echo wrt frequency domain')
 
 % Write Audio Files
 audiowrite("echo.wav", y,fs);

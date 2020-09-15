@@ -5,12 +5,12 @@ imgRed = img(:,:,1);
 imgGreen = img(:,:,2); 
 imgBlue = img(:,:,3); 
 
-figure('Name','RED');
-imshow(imgRed);
-figure('Name','GREEN');
-imshow(imgGreen);
-figure('Name','BLUE');
-imshow(imgBlue);
+% figure('Name','RED');
+% imshow(imgRed);
+% figure('Name','GREEN');
+% imshow(imgGreen);
+% figure('Name','BLUE');
+% imshow(imgBlue);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Get image props that are gonna be used later
 [height, width, channelsCount] = size(img);
@@ -29,7 +29,8 @@ psnr = zeros(mCount, 1); % Peak Signal To Noise Ratio
 compressionRatio = zeros(mCount, 1); % Compression Ratio
 
 for i=1:mCount
-    compressionRatio(i) = imgSize / dctCompress(i, height, width, imgRed, imgGreen, imgBlue);
+    compressionSize = dctCompress(i, height, width, imgRed, imgGreen, imgBlue);
+    compressionRatio(i) = imgSize / compressionSize;
 end
 
 for i=1:mCount
@@ -48,11 +49,11 @@ ylabel('Compression Ratio');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % DCT Compression
-function size = dctCompress(m, height, width, red, green, blue)
+function compressionSize = dctCompress(m, height, width, red, green, blue)
     
     % Initialize Metrices
-    normalizedHeight = height / 8 / m;
-    normalizedWidth = width / 8 / m;
+    normalizedHeight = height / (8 / m);
+    normalizedWidth = width / (8 / m);
     
     redMx = zeros(normalizedHeight, normalizedWidth);
     greenMx = zeros(normalizedHeight, normalizedWidth);
@@ -64,17 +65,18 @@ function size = dctCompress(m, height, width, red, green, blue)
         for j=1:width/8
            x0 = (i - 1) * m + 1;
            x =  m * i;
-           y0 = (j - 1 * m) + 1;
+           y0 = (j - 1) * m + 1;
            y = m * j;
-           
-           block = compress(blue, i, j, m);
-           blueMx(x0:x, y0:y) = block;
            
            block = compress(red, i, j, m);
            redMx(x0:x, y0:y) = block;
-           
+                      
            block = compress(green, i, j, m);
            greenMx(x0:x, y0:y) = block;
+           
+           block = compress(blue, i, j, m);
+           blueMx(x0:x, y0:y) = block;
+
         end
     end
     
@@ -91,7 +93,7 @@ function size = dctCompress(m, height, width, red, green, blue)
     % coefficient as minimum size float is (half) in matlab
     fid = fopen([s1 s2 int2str(m) s3]);
     fseek(fid, 0, 'eof');
-    size = ftell(fid);
+    compressionSize = ftell(fid);
     fclose(fid);
     
 end
@@ -158,10 +160,10 @@ function result = decompress(mx, x0, y0, m)
   global dctMx;
   result = zeros(8, 8);
   
-  x1 = (x0 - 1) * 8 + 1;
-  x = x0 * 8;
-  y1 = (y0 - 1) * 8 + 1;
-  y = y0 * 8;
+  x1 = (x0 - 1) * m + 1;
+  x = x0 * m;
+  y1 = (y0 - 1) * m + 1;
+  y = y0 * m;
   
   result(1:m, 1:m) = mx(x1:x, y1:y);
   result = dctMx' * result * dctMx;

@@ -2,9 +2,9 @@
 
 % Calculating the Impulse Response
 h1 = [zeros(1,0) 1 zeros(1, fs)];
-h2 = [zeros(1, fs * 0.25) 0.9 zeros(1, fs-fs * 0.25)];
-h3 = [zeros(1, fs * 0.5) 0.8 zeros(1, fs-fs * 0.5)];
-h4 = [zeros(1, fs * 0.75) 0.7 zeros(1, fs-fs * 0.75)];
+h2 = [zeros(1, fs * 0.25) 0.9 zeros(1, fs- fs * 0.25)];
+h3 = [zeros(1, fs * 0.5) 0.8 zeros(1, fs- fs * 0.5)];
+h4 = [zeros(1, fs * 0.75) 0.7 zeros(1, fs- fs * 0.75)];
 h = h1 + h2 + h3 + h4;
 
 % Calculate X = Inverse DFT
